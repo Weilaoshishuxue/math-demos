@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>直角三角形动点问题动态演示（直角在右下角）</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --accent: #ea580c;
+      --green: #059669;
+      --purple: #7c3aed;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app {
+      width: 100%;
+      max-width: 1180px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+    }
+    @media (max-width: 960px) {
+      .app { grid-template-columns: 1fr; }
+    }
+    .canvas-card, .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    }
+    .canvas-card {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #fcfdff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas:active { cursor: grabbing; }
+    .panel {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover { border-color: var(--primary); color: var(--primary); }
+    button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    button.play-btn {
+      width: 100%;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+    }
+    button.play-btn.playing {
+      background: #334155;
+      border-color: #334155;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .metrics {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .metric-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+    .conclusion-badge {
+      grid-column: 1 / -1;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      justify-content: space-between;
+    }
+    .proof-box {
+      background: #f8fafc;
+      border-left: 3px solid var(--purple);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #334155;
+    }
+    .proof-box b { color: var(--text); }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="canvas-card">
+      <div class="topbar">
+        <div class="title">Rt△ABC 斜边动点问题（∠C = 90° 在右下角）</div>
+        <div class="hint">拖动橙点 P 沿直线 AB 移动；拖动 A / B 可调整直角边长</div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="geoCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <button id="playBtn" class="play-btn">▶ 自动播放动图</button>
+        <div class="slider-row" style="margin-top:8px;">
+          <span>动点位置 t</span>
+          <input id="tSlider" type="range" min="-0.45" max="1.45" step="0.005" value="0.5" />
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">三问情境一键切换</div>
+        <div class="btn-grid">
+          <button data-preset="0.5" class="active">图1：P 与 Q 重合</button>
+          <button data-preset="0.28">图2：在线段 AB 上</button>
+          <button data-preset="-0.28">图3：BA 延长线上</button>
+          <button data-preset="1.28">图3'：AB 延长线上</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">辅助线教学模式</div>
+        <div class="btn-grid" style="grid-template-columns: 1fr;">
+          <button data-aux="none" class="active">原图（无辅助线）</button>
+          <button data-aux="method1">法一：延长 FQ 交 AE(延长线)于 D（八字全等）</button>
+          <button data-aux="method2">法二：过 Q 作 QM ⊥ CP 于 M（垂直平分线）</button>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span>板书纯净模式（隐藏数值）</span>
+        <input id="cleanMode" type="checkbox" />
+      </div>
+
+      <div id="metricsBox" class="metrics">
+        <div>
+          <div style="color:var(--muted);font-size:12px;">QE 长度</div>
+          <div id="qeVal" class="metric-val">--</div>
+        </div>
+        <div>
+          <div style="color:var(--muted);font-size:12px;">QF 长度</div>
+          <div id="qfVal" class="metric-val">--</div>
+        </div>
+        <div class="conclusion-badge">
+          <span id="stateText">当前：线段 AB 上</span>
+          <span>恒有 QE = QF</span>
+        </div>
+      </div>
+
+      <div id="proofBox" class="proof-box"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('geoCanvas');
+    const ctx = canvas.getContext('2d');
+    const playBtn = document.getElementById('playBtn');
+    const tSlider = document.getElementById('tSlider');
+    const cleanMode = document.getElementById('cleanMode');
+    const metricsBox = document.getElementById('metricsBox');
+    const qeVal = document.getElementById('qeVal');
+    const qfVal = document.getElementById('qfVal');
+    const stateText = document.getElementById('stateText');
+    const proofBox = document.getElementById('proofBox');
+
+    // 逻辑坐标系：800 x 600，直角顶点 C 固定在右下角
+    const W = 800, H = 600;
+    const state = {
+      C: { x: 550, y: 470 },
+      A: { x: 300, y: 470 }, // 水平向左，保持 y = C.y
+      B: { x: 550, y: 40 },  // 竖直向上，保持 x = C.x（BC 明显大于 AC，瘦高形对齐教材图1）
+      t: 0.5,                // P = A + t * (B - A)，默认图1：P 与 Q 重合
+      aux: 'none',
+      playing: false,
+      dir: 1,
+      dragging: null
+    };
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform((rect.width * dpr) / W, 0, 0, (rect.height * dpr) / H, 0, 0);
+      draw();
+    }
+    window.addEventListener('resize', resize);
+
+    // 向量工具
+    const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+    const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+    const mul = (a, s) => ({ x: a.x * s, y: a.y * s });
+    const dot = (a, b) => a.x * b.x + a.y * b.y;
+    const len = (a) => Math.hypot(a.x, a.y);
+    const norm = (a) => {
+      const l = len(a);
+      return l < 1e-6 ? { x: 0, y: 0 } : { x: a.x / l, y: a.y / l };
+    };
+    const dist = (a, b) => len(sub(a, b));
+
+    function projectPointToLine(pt, lineA, lineB) {
+      const u = norm(sub(lineB, lineA));
+      const d = dot(sub(pt, lineA), u);
+      return add(lineA, mul(u, d));
+    }
+
+    function drawLineInf(p1, p2, color, width = 1.5, dash = []) {
+      const u = norm(sub(p2, p1));
+      if (len(u) < 0.5) return;
+      const s = add(p1, mul(u, -1200));
+      const e = add(p1, mul(u, 1200));
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSeg(p1, p2, color, width = 2, dash = []) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawRightAngle(vertex, p1, p2, size = 12, color = '#64748b') {
+      const u1 = norm(sub(p1, vertex));
+      const u2 = norm(sub(p2, vertex));
+      if (len(u1) < 0.5 || len(u2) < 0.5) return;
+      const a = add(vertex, mul(u1, size));
+      const b = add(a, mul(u2, size));
+      const c = add(vertex, mul(u2, size));
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTick(p1, p2, count = 1, color = '#059669') {
+      const mid = mul(add(p1, p2), 0.5);
+      const u = norm(sub(p2, p1));
+      const n = { x: -u.y, y: u.x };
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * 5;
+        const c = add(mid, mul(u, offset));
+        const a = add(c, mul(n, 6));
+        const b = add(c, mul(n, -6));
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawPoint(p, label, color = '#1e293b', dx = 8, dy = -8, r = 4.5) {
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = 'bold 16px "Times New Roman", serif';
+      ctx.fillStyle = color;
+      ctx.fillText(label, p.x + dx, p.y + dy);
+      ctx.restore();
+    }
+
+    function fillTri(p1, p2, p3, fill) {
+      ctx.save();
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function updateProofText(isCoincide) {
+      if (state.aux === 'none') {
+        if (isCoincide) {
+          proofBox.innerHTML = '<b>第（1）问（P 与 Q 重合）：</b><br>此时直线 CP 即中线 CQ。由于 Q 是 AB 中点且 AE ⊥ CP、BF ⊥ CP，由“八字全等”可得 △QAE ≌ △QBF，故 <b>QE = QF</b>。';
+        } else {
+          proofBox.innerHTML = '<b>核心结论：</b>无论动点 P 在线段 AB 上还是在 AB（或 BA）的延长线上，结论 <b>QE = QF</b> 始终成立。<br>点击上方「辅助线教学模式」可直观展示两种标准证法。';
+        }
+      } else if (state.aux === 'method1') {
+        if (isCoincide) {
+          proofBox.innerHTML = '<b>法一（当 P 与 Q 重合时）：</b><br>点 D 与点 E 重合，直接由 <b>△QAE ≌ △QBF (AAS)</b> 得 QE = QF。';
+        } else {
+          proofBox.innerHTML = '<b>法一：延长 FQ 交 AE（或延长线）于 D</b><br>1. ∵ AE ⊥ CP，BF ⊥ CP，∴ AE ∥ BF；<br>2. ∵ Q 为 AB 中点，∴ <b>△QAD ≌ △QBF (AAS)</b>，得 <b>QD = QF</b>；<br>3. 在 <b>Rt△DEF</b> 中，Q 为斜边 DF 中点，由斜边中线性质得 <b>QE = ½DF = QF</b>。';
+        }
+      } else {
+        proofBox.innerHTML = '<b>法二：过 Q 作 QM ⊥ CP 于 M</b><br>1. ∵ AE ⊥ CP，QM ⊥ CP，BF ⊥ CP，∴ <b>AE ∥ QM ∥ BF</b>；<br>2. ∵ Q 是 AB 中点，由平行线等分线段（或梯形中位线）得 <b>EM = FM</b>；<br>3. ∴ QM 垂直平分 EF，故 <b>QE = QF</b>。';
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      // 背景淡网格
+      ctx.save();
+      ctx.strokeStyle = '#f1f5f9';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y <= H; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.restore();
+
+      const { A, B, C } = state;
+      const Q = mul(add(A, B), 0.5);
+      // 避开 P 与 A 或 B 完全重合的退化点
+      let t = state.t;
+      if (Math.abs(t) < 0.015) t = t >= 0 ? 0.015 : -0.015;
+      if (Math.abs(t - 1) < 0.015) t = t >= 1 ? 1.015 : 0.985;
+
+      const P = add(A, mul(sub(B, A), t));
+      const E = projectPointToLine(A, C, P);
+      const F = projectPointToLine(B, C, P);
+      const D = sub(mul(Q, 2), F); // 法一交点：关于 Q 与 F 对称，必在直线 AE 上
+      const M = projectPointToLine(Q, C, P); // 法二垂足：EF 中点
+      const isCoincide = Math.abs(t - 0.5) < 0.008;
+
+      // 延长线：直线 AB 与直线 CP
+      drawLineInf(A, B, '#cbd5e1', 1.5, [6, 5]);
+      drawLineInf(C, P, '#94a3b8', 1.6, [5, 4]);
+
+      // 辅助线高亮区域
+      if (state.aux === 'method1' && !isCoincide) {
+        fillTri(Q, A, D, 'rgba(124, 58, 237, 0.12)');
+        fillTri(Q, B, F, 'rgba(124, 58, 237, 0.12)');
+        drawSeg(F, D, '#7c3aed', 2, [6, 4]);
+        drawSeg(A, D, '#7c3aed', 1.8, [4, 4]);
+        drawSeg(E, D, '#7c3aed', 1.8, [4, 4]);
+      } else if (state.aux === 'method2') {
+        drawSeg(Q, M, '#7c3aed', 2.2, [6, 4]);
+        drawRightAngle(M, Q, C, 10, '#7c3aed');
+        if (dist(E, M) > 12) drawTick(E, M, 2, '#7c3aed');
+        if (dist(F, M) > 12) drawTick(F, M, 2, '#7c3aed');
+      }
+
+      // 主三角形 ABC
+      fillTri(A, B, C, 'rgba(37, 99, 235, 0.04)');
+      drawSeg(A, C, '#1e293b', 2.4);
+      drawSeg(B, C, '#1e293b', 2.4);
+      drawSeg(A, B, '#1e293b', 2.4);
+      drawRightAngle(C, A, B, 14, '#1e293b');
+
+      // 射线/线段 CP
+      drawSeg(C, P, '#2563eb', 2);
+
+      // 垂线 AE, BF
+      drawSeg(A, E, '#0284c7', 1.8);
+      drawSeg(B, F, '#0284c7', 1.8);
+      if (dist(A, E) > 8) drawRightAngle(E, A, dist(C, E) > 10 ? C : P, 10, '#0284c7');
+      if (dist(B, F) > 8) drawRightAngle(F, B, dist(C, F) > 10 ? C : P, 10, '#0284c7');
+
+      // 核心结论线段 QE, QF
+      drawSeg(Q, E, '#059669', 2.6);
+      drawSeg(Q, F, '#059669', 2.6);
+      if (dist(Q, E) > 20) drawTick(Q, E, 1, '#059669');
+      if (dist(Q, F) > 20) drawTick(Q, F, 1, '#059669');
+
+      // 点与标签
+      drawPoint(C, 'C', '#1e293b', 10, 16, 4.5);
+      drawPoint(A, 'A', '#1e293b', -20, 16, 5.5);
+      drawPoint(B, 'B', '#1e293b', 10, -8, 5.5);
+      drawPoint(E, 'E', '#0284c7', -18, -8, 4);
+      drawPoint(F, 'F', '#0284c7', -20, -10, 4);
+      drawPoint(Q, isCoincide ? 'Q (P)' : 'Q', '#059669', -12, -14, 5);
+      if (!isCoincide) {
+        drawPoint(P, 'P', '#ea580c', 10, 16, 6.5);
+      }
+      if (state.aux === 'method1' && !isCoincide) {
+        drawPoint(D, 'D', '#7c3aed', -18, 16, 4.5);
+      }
+      if (state.aux === 'method2') {
+        drawPoint(M, 'M', '#7c3aed', 10, 16, 4.5);
+      }
+
+      // 更新数据面板
+      const lenQE = (dist(Q, E) / 40).toFixed(2);
+      const lenQF = (dist(Q, F) / 40).toFixed(2);
+      qeVal.textContent = lenQE;
+      qfVal.textContent = lenQF;
+
+      if (isCoincide) stateText.textContent = '当前：P 与 Q 重合';
+      else if (t > 0 && t < 1) stateText.textContent = '当前：线段 AB 上';
+      else if (t < 0) stateText.textContent = '当前：BA 延长线上';
+      else stateText.textContent = '当前：AB 延长线上';
+
+      updateProofText(isCoincide);
+    }
+
+    // 鼠标/触控拖拽
+    function getPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      return {
+        x: ((clientX - rect.left) / rect.width) * W,
+        y: ((clientY - rect.top) / rect.height) * H
+      };
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      const p = getPos(e);
+      const P = add(state.A, mul(sub(state.B, state.A), state.t));
+      if (dist(p, P) < 22) state.dragging = 'P';
+      else if (dist(p, state.A) < 20) state.dragging = 'A';
+      else if (dist(p, state.B) < 20) state.dragging = 'B';
+      if (state.dragging) {
+        state.playing = false;
+        playBtn.textContent = '▶ 自动播放动图';
+        playBtn.classList.remove('playing');
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!state.dragging) return;
+      const p = getPos(e);
+      if (state.dragging === 'P') {
+        const ab = sub(state.B, state.A);
+        let t = dot(sub(p, state.A), ab) / dot(ab, ab);
+        t = Math.max(-0.45, Math.min(1.45, t));
+        if (Math.abs(t - 0.5) < 0.025) t = 0.5; // 靠近 Q 自动轻微吸附
+        state.t = t;
+        tSlider.value = t.toFixed(3);
+      } else if (state.dragging === 'A') {
+        state.A.x = Math.max(100, Math.min(state.C.x - 100, p.x));
+      } else if (state.dragging === 'B') {
+        state.B.y = Math.max(30, Math.min(state.C.y - 100, p.y));
+      }
+      draw();
+    });
+
+    canvas.addEventListener('pointerup', () => { state.dragging = null; });
+
+    // 控件事件
+    tSlider.addEventListener('input', (e) => {
+      state.t = parseFloat(e.target.value);
+      draw();
+    });
+
+    document.querySelectorAll('[data-preset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-preset]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.t = parseFloat(btn.dataset.preset);
+        tSlider.value = state.t;
+        state.playing = false;
+        playBtn.textContent = '▶ 自动播放动图';
+        playBtn.classList.remove('playing');
+        draw();
+      });
+    });
+
+    document.querySelectorAll('[data-aux]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-aux]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.aux = btn.dataset.aux;
+        draw();
+      });
+    });
+
+    cleanMode.addEventListener('change', (e) => {
+      metricsBox.classList.toggle('hidden', e.target.checked);
+    });
+
+    playBtn.addEventListener('click', () => {
+      state.playing = !state.playing;
+      playBtn.textContent = state.playing ? '⏸ 暂停动图' : '▶ 自动播放动图';
+      playBtn.classList.toggle('playing', state.playing);
+    });
+
+    function animate() {
+      if (state.playing) {
+        state.t += 0.004 * state.dir;
+        if (state.t >= 1.38) { state.t = 1.38; state.dir = -1; }
+        if (state.t <= -0.38) { state.t = -0.38; state.dir = 1; }
+        tSlider.value = state.t.toFixed(3);
+        draw();
+      }
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    animate();
+  </script>
+</body>
+</html>
